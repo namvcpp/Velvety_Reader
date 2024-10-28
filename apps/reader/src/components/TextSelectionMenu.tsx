@@ -8,6 +8,7 @@ import {
   MdOutlineEdit,
   MdOutlineIndeterminateCheckBox,
   MdSearch,
+  MdTranslate, // Import translation icon
 } from 'react-icons/md'
 import { useSnapshot } from 'valtio'
 
@@ -127,6 +128,8 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
   const cfi = tab.rangeToCfi(range)
   const annotation = tab.book.annotations.find((a) => a.cfi === cfi)
   const [annotate, setAnnotate] = useState(!!annotation)
+  const [translatedText, setTranslatedText] = useState('') // State for translated text
+  const [showTranslation, setShowTranslation] = useState(false) // State for translation visibility
 
   const position = forward
     ? LayoutAnchorPosition.Before
@@ -141,6 +144,29 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
   const lineHeight = isNaN(_lineHeight)
     ? anchorRect.height
     : _lineHeight * (zoom ?? 1)
+
+  const handleTranslate = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/translate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }), // Ensure `text` contains the selected text
+      })
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok')
+      }
+
+      const data = await response.json()
+      setTranslatedText(data.translated_text)
+      setShowTranslation(true)
+      // alert(data.translated_text) // Display the translated text
+    } catch (error) {
+      console.error('Error during translation:', error)
+    }
+  }
 
   return (
     <FocusLock disabled={mobile}>
@@ -194,6 +220,18 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
               autoFocus
             />
           </div>
+        ) : showTranslation ? (
+          <div className="mb-3">
+            <TextField
+              mRef={ref}
+              as="textarea"
+              name="translation"
+              defaultValue={translatedText}
+              hideLabel
+              className="h-40 w-72"
+              readOnly
+            />
+          </div>
         ) : (
           <div className="text-on-surface-variant -mx- mb-3 flex gap-1">
             <IconButton
@@ -214,6 +252,12 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
                 setAction('search')
                 tab.setKeyword(text)
               }}
+            />
+            <IconButton
+              title={t('translate')}
+              Icon={MdTranslate}
+              size={ICON_SIZE}
+              onClick={handleTranslate}
             />
             <IconButton
               title={t('annotate')}
