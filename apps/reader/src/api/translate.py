@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import translators as ts
+import requests
 
 app = FastAPI()
 
@@ -23,6 +25,9 @@ model_en2vi.to(device_en2vi)
 class TranslationRequest(BaseModel):
     text: str
 
+class LookupRequest(BaseModel):
+    text: str
+
 @app.post("/translate")
 async def translate(request: TranslationRequest):
     input_ids = tokenizer_en2vi(request.text, return_tensors="pt").input_ids.to(device_en2vi)
@@ -35,3 +40,22 @@ async def translate(request: TranslationRequest):
     )
     vi_text = tokenizer_en2vi.batch_decode(output_ids, skip_special_tokens=True)
     return {"translated_text": " ".join(vi_text)}
+
+@app.post("/lookup")
+async def lookup(request: LookupRequest):
+    try:
+        sel_text = request.text
+        if sel_text:
+            response = requests.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{sel_text}")
+            if response.status_code == 200:
+                data = response.json()[0]
+                word = data.get("word", "")
+                phonetic = data.get("phonetic", "")
+                origin = data.get("origin", "")
+                meanings = data.get("meanings", [])
+                definition = meanings[0]["definitions"][0]["definition"] if meanings else "No definition available."
+                return {"lookup_result": f"Word: {word}\nPhonetic: {phonetic}\nOrigin: {origin}\nDefinition: {definition}"}
+            else:
+                return {"lookup_result": "Error! Word not found."}
+    except Exception as e:
+        return {"error": str(e)}

@@ -8,7 +8,8 @@ import {
   MdOutlineEdit,
   MdOutlineIndeterminateCheckBox,
   MdSearch,
-  MdTranslate, // Import translation icon
+  MdTranslate,
+  MdBook,
 } from 'react-icons/md'
 import { useSnapshot } from 'valtio'
 
@@ -130,6 +131,8 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
   const [annotate, setAnnotate] = useState(!!annotation)
   const [translatedText, setTranslatedText] = useState('') // State for translated text
   const [showTranslation, setShowTranslation] = useState(false) // State for translation visibility
+  const [lookup, setLookup] = useState('') // State for lookup result
+  const [showLookup, setShowLookup] = useState(false) // State for lookup visibility
 
   const position = forward
     ? LayoutAnchorPosition.Before
@@ -165,6 +168,29 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
       // alert(data.translated_text) // Display the translated text
     } catch (error) {
       console.error('Error during translation:', error)
+    }
+  }
+
+  const handleLookup = async () => {
+    try {
+      const response = await fetch('http://127.0.0.1:8000/lookup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text }), // Ensure `text` contains the selected text
+      })
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok')
+      }
+
+      const data = await response.json()
+      setLookup(data.lookup_result)
+      setShowLookup(true)
+      // alert(data.lookup_result) // Display the lookup result
+    } catch (error) {
+      console.error('Error during lookup:', error)
     }
   }
 
@@ -232,6 +258,18 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
               readOnly
             />
           </div>
+        ) : showLookup ? (
+          <div className="mb-3">
+            <TextField
+              mRef={ref}
+              as="textarea"
+              name="lookup"
+              defaultValue={lookup}
+              hideLabel
+              className="h-40 w-72"
+              readOnly
+            />
+          </div>
         ) : (
           <div className="text-on-surface-variant -mx- mb-3 flex gap-1">
             <IconButton
@@ -258,6 +296,12 @@ const TextSelectionMenuRenderer: React.FC<TextSelectionMenuRendererProps> = ({
               Icon={MdTranslate}
               size={ICON_SIZE}
               onClick={handleTranslate}
+            />
+            <IconButton
+              title={t('lookup')}
+              Icon={MdBook}
+              size={ICON_SIZE}
+              onClick={handleLookup}
             />
             <IconButton
               title={t('annotate')}
